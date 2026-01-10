@@ -1,0 +1,138 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Jmusic</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{background:#0b0f1a;color:white;font-family:system-ui;padding:20px}
+button,select{
+  padding:10px;margin:4px 0;width:100%;
+  border-radius:8px;border:none;
+  background:#8b5cf6;color:white;font-weight:700
+}
+button.off{background:#444}
+audio{width:100%;margin-top:10px}
+#list button{background:#1a1f3a}
+</style>
+</head>
+<body>
+
+<h2>🎵 Jmusic</h2>
+
+<select id="playlistSelect"></select>
+
+<button id="shuffleBtn" class="off">Shuffle: OFF</button>
+<button id="loopBtn" class="off">Loop: OFF</button>
+<button onclick="prev()">⏮ Prev</button>
+<button onclick="next()">⏭ Next</button>
+
+<div id="list">Loading…</div>
+
+<audio id="player" controls></audio>
+
+<script>
+const USER = "jbrimz088";
+const REPO = "Jmusic";
+const ROOT = "playlists";
+
+let songs = [];
+let order = [];
+let index = 0;
+let shuffle = false;
+let loopOne = false;
+
+const list = document.getElementById("list");
+const player = document.getElementById("player");
+const shuffleBtn = document.getElementById("shuffleBtn");
+const loopBtn = document.getElementById("loopBtn");
+const playlistSelect = document.getElementById("playlistSelect");
+
+const API = path =>
+  `https://api.github.com/repos/${USER}/${REPO}/contents/${path}`;
+
+fetch(API(ROOT))
+  .then(r=>r.json())
+  .then(folders=>{
+    folders.filter(f=>f.type==="dir").forEach(f=>{
+      const o=document.createElement("option");
+      o.value=f.name;
+      o.textContent=f.name;
+      playlistSelect.appendChild(o);
+    });
+    loadPlaylist(playlistSelect.value);
+  });
+
+playlistSelect.onchange = ()=> loadPlaylist(playlistSelect.value);
+
+function loadPlaylist(name){
+  fetch(API(`${ROOT}/${name}`))
+    .then(r=>r.json())
+    .then(files=>{
+      songs = files.filter(f=>f.name.endsWith(".mp3"));
+      shuffleOrder();
+      render();
+      play(0);
+    });
+}
+
+function shuffleOrder(){
+  order = songs.map((_,i)=>i);
+  if(shuffle){
+    for(let i=order.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [order[i],order[j]]=[order[j],order[i]];
+    }
+  }
+}
+
+function render(){
+  list.innerHTML="";
+  order.forEach((i,pos)=>{
+    const b=document.createElement("button");
+    b.textContent=songs[i].name;
+    b.onclick=()=>{index=pos;playCurrent()};
+    list.appendChild(b);
+  });
+}
+
+function play(pos){ index=pos; playCurrent(); }
+
+function playCurrent(){
+  player.src = songs[order[index]].download_url;
+  player.play();
+}
+
+function next(){
+  index=(index+1)%order.length;
+  playCurrent();
+}
+
+function prev(){
+  index=(index-1+order.length)%order.length;
+  playCurrent();
+}
+
+shuffleBtn.onclick=()=>{
+  shuffle=!shuffle;
+  shuffleBtn.textContent=`Shuffle: ${shuffle?"ON":"OFF"}`;
+  shuffleBtn.classList.toggle("off",!shuffle);
+  shuffleOrder();
+  render();
+  play(0);
+};
+
+loopBtn.onclick=()=>{
+  loopOne=!loopOne;
+  loopBtn.textContent=`Loop: ${loopOne?"ON":"OFF"}`;
+  loopBtn.classList.toggle("off",!loopOne);
+};
+
+player.addEventListener("ended",()=>{
+  if(loopOne) playCurrent();
+  else next();
+});
+</script>
+
+</body>
+</html>
